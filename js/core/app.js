@@ -1,6 +1,6 @@
 /**
- * HID-Fix App Orchestrator (ES2024 Phase 5 Fully Integrated Engine)
- * کالیبراسیون ویزارد، رندرهای کانوس و سیستم لاگ کارگاهی
+ * HID-Fix App Orchestrator (ES2024 Phase 3 - Standard UI Integration)
+ * ارکستراتور اصلی، مدیریت چرخه پردازش زنده و ایمن‌سازی بوم گرافیکی با دقت بالا
  */
 
 import { AppState } from './state.js';
@@ -11,13 +11,16 @@ import { AnalogCanvas } from '../display/canvas.js';
 import { CalibrationWizard } from './wizard.js';
 
 const AppCore = {
+    /**
+     * راه‌اندازی اولیه ماژول‌ها و شنودارهای رویداد رابط کاربری
+     */
     init() {
-        AppState.log('هسته مرکزی سامانه HID-Fix راه‌اندازی شد.', 'info');
+        AppState.log('هسته مرکزی سامانه HID-Fix با موفقیت راه‌اندازی شد.', 'info');
         
         HidEngine.init();
         AnalogCanvas.init('canvas-left', 'canvas-right');
 
-        // اتصال دکمه‌های ناوبری ویزارد کالیبراسیون
+        // اتصال دکمه‌های ناوبری ماشین وضعیت ویزارد کالیبراسیون
         const btnStartCalib = document.getElementById('btn-start-calibration');
         if (btnStartCalib) {
             btnStartCalib.addEventListener('click', () => CalibrationWizard.start());
@@ -27,6 +30,7 @@ const AppCore = {
         document.getElementById('wiz-btn-back')?.addEventListener('click', () => CalibrationWizard.prevStep());
         document.getElementById('wiz-btn-cancel')?.addEventListener('click', () => CalibrationWizard.cancel());
 
+        // اتصال دکمه اصلی برقراری ارتباط سخت‌افزاری WebHID
         const btnConnect = document.getElementById('btn-connect');
         if (btnConnect) {
             btnConnect.addEventListener('click', () => HidEngine.requestDevicePermission());
@@ -34,132 +38,118 @@ const AppCore = {
 
         this.initTabs();
 
-        HidEngine.onDeviceReady = async (device) => {
-            AppState.log(`در حال استخراج هدرهای عمیق فریمور از کانتینر تراشه...`, 'info');
-            if (device.vendorId === 0x054C) {
-                await SonyDecoder.queryDeepFirmware(device);
+        // اتصال لوپ فیزیکی موتور پکت‌ها به دکودرهای مربوطه
+        HidEngine.onDeviceInput = (reportId, dataView) => {
+            const vId = AppState.deviceInfo.vendorId;
+            if (vId === 0x054C || vId === '0x054C') {
+                SonyDecoder.decodeInput(reportId, dataView);
+            } else if (vId === 0x045E || vId === '0x045E') {
+                XboxDecoder.decodeInput(reportId, dataView);
             }
+            
+            // اجرای لوپ پردازش و رندر ۶۰FPS بر روی کانوس‌ها
+            this.processLiveFrame();
         };
-
-        // اصلاح بومی‌سازی پکت بدون تخریب آلاینمنت مپینگ
-        HidEngine.onInputReceived = (vendorId, reportId, dataBuffer) => {
-            if (vendorId === 0x054C) {
-                SonyDecoder.decodeInput(reportId, dataBuffer);
-            } else if (vendorId === 0x045E) {
-                XboxDecoder.decodeInput(reportId, dataBuffer);
-            }
-        };
-
-        this.runUpdateLoop();
     },
 
+    /**
+     * مدیریت تبهاب سایدبار (تلمتری فریمور / اطلاعات کارگاهی)
+     */
     initTabs() {
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                tabButtons.forEach(b => b.classList.remove('active'));
+        const tabs = document.querySelectorAll('.tab-btn');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-                btn.classList.add('active');
-                const targetTab = document.getElementById(btn.getAttribute('data-tab'));
-                if (targetTab) targetTab.classList.add('active');
+                
+                tab.classList.add('active');
+                const targetPane = document.getElementById(tab.dataset.tab);
+                if (targetPane) targetPane.classList.add('active');
             });
         });
     },
 
-    runUpdateLoop() {
-        const loop = () => {
-            this.syncStateWithUI();
-            this.renderHardwareButtonsMap();
-            
-            if (AppState.connection.status === 'connected') {
-                const calibratedLX = AppState.inputs.axes.lx - AppState.calibration.offsetLX;
-                const calibratedLY = AppState.inputs.axes.ly - AppState.calibration.offsetLY;
-                const calibratedRX = AppState.inputs.axes.rx - AppState.calibration.offsetRX;
-                const calibratedRY = AppState.inputs.axes.ry - AppState.calibration.offsetRY;
+    /**
+     * هسته پردازش فریم زنده - انتقال داده‌های کالیبره شده به کانوس و مانیتورینگ DOM
+     */
+    processLiveFrame() {
+        const axes = AppState.inputs.axes;
+        
+        // ۱. رندر زنده مختصات هندسی روی لایه کانوس
+        AnalogCanvas.updateAndRender('left', axes.lx, axes.ly);
+        AnalogCanvas.updateAndRender('right', axes.rx, axes.ry);
 
-                AnalogCanvas.updateAndRender('left', calibratedLX, calibratedLY);
-                AnalogCanvas.updateAndRender('right', calibratedRX, calibratedRY);
-
-                CalibrationWizard.captureLiveBounds();
-            }
-            
-            requestAnimationFrame(loop);
-        };
-        requestAnimationFrame(loop);
+        // ۲. به‌روزرسانی مداوم و بهینه رابط کاربری متنی و دیجیتال
+        this.updateDOMState();
     },
 
-    renderHardwareButtonsMap() {
-        if (AppState.connection.status !== 'connected') return;
-
-        const buttonSelectors = {
-            'dpad-up': 'btn-dpad-up', 'dpad-down': 'btn-dpad-down',
-            'dpad-left': 'btn-dpad-left', 'dpad-right': 'btn-dpad-right',
-            'action-top': 'btn-action-top', 'action-bottom': 'btn-action-bottom',
-            'action-left': 'btn-action-left', 'action-right': 'btn-action-right',
-            'l1': 'btn-l1', 'r1': 'btn-r1', 'l3': 'btn-l3', 'r3': 'btn-r3'
-        };
-
-        for (const [stateKey, domId] of Object.entries(buttonSelectors)) {
-            const el = document.getElementById(domId);
-            if (el) {
-                if (AppState.inputs.buttons[stateKey]) el.classList.add('pressed');
-                else el.classList.remove('pressed');
-            }
-        }
-
-        const l2Bar = document.getElementById('bar-l2');
-        const r2Bar = document.getElementById('bar-r2');
-        if (l2Bar) l2Bar.style.width = `${(AppState.inputs.triggers.l2 * 100).toFixed(0)}%`;
-        if (r2Bar) r2Bar.style.width = `${(AppState.inputs.triggers.r2 * 100).toFixed(0)}%`;
-    },
-
-    syncStateWithUI() {
+    /**
+     * رندر عمیق لایه متنی و کدهای تلمتری با مکانیزم‌های حفاظتی بالاو انطباق با فاز ۱
+     */
+    updateDOMState() {
         const body = document.body;
-        const status = AppState.connection.status;
+        const isConnected = AppState.connection.isConnected;
 
-        if (status === 'connected') {
+        if (isConnected) {
             if (body.classList.contains('disconnected')) body.classList.remove('disconnected');
             
-            document.getElementById('connection-badge').innerText = `Connected: ${AppState.connection.backend.toUpperCase()}`;
-            document.getElementById('connection-badge').className = 'badge badge-connected';
-            document.getElementById('val-conn-type').innerText = AppState.connection.type;
-            document.getElementById('val-charge-status').innerText = AppState.battery.status.toUpperCase();
-            document.getElementById('val-battery-lvl').innerText = `${AppState.battery.percentage}%`;
-            document.getElementById('val-voltage').innerText = AppState.battery.voltage;
-            document.getElementById('rate-l-poll').innerText = `${AppState.analysis.left.pollingRate}Hz`;
+            const badge = document.getElementById('connection-badge');
+            if (badge) {
+                badge.innerText = `Connected (${AppState.connection.type?.toUpperCase()})`;
+                badge.className = 'badge badge-connected';
+            }
+
+            // رندر زنده نرخ نمونه‌برداری پکت‌ها (Polling Rate)
+            const hzLeft = AppState.analysis.left.pollingRate || 0;
+            const hzRight = AppState.analysis.right.pollingRate || 0;
+            const elHzLeft = document.getElementById('val-hz-left');
+            const elHzRight = document.getElementById('val-hz-right');
+            if (elHzLeft) elHzLeft.innerText = `${hzLeft} Hz`;
+            if (elHzRight) elHzRight.innerText = `${hzRight} Hz`;
+
+            // رندر نتایج آنالیز برداری و ماتریس خطای دایره‌ای استیک‌ها
+            const lOffset = AppState.analysis.left.centerOffset || 0;
+            const rOffset = AppState.analysis.right.centerOffset || 0;
+            const lCircErr = AppState.analysis.left.circularError || 0;
+            const rCircErr = AppState.analysis.right.circularError || 0;
+
+            const elLOffset = document.getElementById('err-l-offset');
+            const elROffset = document.getElementById('err-r-offset');
+            if (elLOffset) elLOffset.innerText = lOffset.toFixed(4);
+            if (elROffset) elROffset.innerText = rOffset.toFixed(4);
+
+            const elLCirc = document.getElementById('err-l-circ');
+            const elRCirc = document.getElementById('err-r-circ');
+            if (elLCirc) elLCirc.innerText = `${lCircErr.toFixed(2)}%`;
+            if (elRCirc) elRCirc.innerText = `${rCircErr.toFixed(2)}%`;
+
+            // رندر اطلاعات هویتی و کدهای عمیق ثبت کارخانه (تزریق فاز ۱)
+            const elName = document.getElementById('info-name');
+            if (elName) elName.innerText = (AppState.deviceInfo.name || 'Unknown').substring(0, 22);
             
-            document.getElementById('axis-lx').innerText = AppState.inputs.axes.lx.toFixed(2);
-            document.getElementById('axis-ly').innerText = AppState.inputs.axes.ly.toFixed(2);
-            document.getElementById('axis-rx').innerText = AppState.inputs.axes.rx.toFixed(2);
-            document.getElementById('axis-ry').innerText = AppState.inputs.axes.ry.toFixed(2);
+            const elVid = document.getElementById('info-vid');
+            const elPid = document.getElementById('info-pid');
+            if (elVid) elVid.innerText = AppState.deviceInfo.vendorId;
+            if (elPid) elPid.innerText = AppState.deviceInfo.productId;
 
-            const lOffset = AppState.analysis.left.centerOffset;
-            const rOffset = AppState.analysis.right.centerOffset;
-            document.getElementById('err-l-offset').innerText = lOffset.toFixed(4);
-            document.getElementById('err-r-offset').innerText = rOffset.toFixed(4);
+            // رندر اطلاعات فریمور استخراج شده از رجیسترهای اصلی سخت‌افزار
+            if (document.getElementById('fw-ver')) document.getElementById('fw-ver').innerText = AppState.deviceInfo.firmware?.version || '-';
+            if (document.getElementById('fw-date')) document.getElementById('fw-date').innerText = AppState.deviceInfo.firmware?.buildDate || '-';
+            if (document.getElementById('fw-sbl')) document.getElementById('fw-sbl').innerText = AppState.deviceInfo.firmware?.sblVersion || '-';
+            if (document.getElementById('fw-touchpad')) document.getElementById('fw-touchpad').innerText = AppState.deviceInfo.firmware?.touchpadDriver || '-';
             
-            document.getElementById('err-l-offset').style.color = lOffset > 0.05 ? 'var(--color-danger)' : 'var(--color-text-primary)';
-            document.getElementById('err-r-offset').style.color = rOffset > 0.05 ? 'var(--color-danger)' : 'var(--color-text-primary)';
+            // رندر کدهای اختصاصی شناسایی سخت‌افزار مادری
+            if (document.getElementById('hw-mcu')) document.getElementById('hw-mcu').innerText = AppState.deviceInfo.hardware?.mcuId || '-';
+            if (document.getElementById('hw-serial')) document.getElementById('hw-serial').innerText = AppState.deviceInfo.hardware?.factorySerial || '-';
+            if (document.getElementById('hw-bt-addr')) document.getElementById('hw-bt-addr').innerText = AppState.deviceInfo.hardware?.macAddress || '-';
 
-            const lCircErr = AppState.analysis.left.circularError;
-            const rCircErr = AppState.analysis.right.circularError;
-            document.getElementById('err-l-circ').innerText = `${lCircErr.toFixed(2)}%`;
-            document.getElementById('err-r-circ').innerText = `${rCircErr.toFixed(2)}%`;
-
-            document.getElementById('info-name').innerText = AppState.deviceInfo.controllerName.substring(0, 22);
-            document.getElementById('info-vid').innerText = AppState.deviceInfo.vendorId;
-            document.getElementById('info-pid').innerText = AppState.deviceInfo.productId;
-            document.getElementById('fw-ver').innerText = AppState.deviceInfo.firmware.version;
-            document.getElementById('fw-date').innerText = AppState.deviceInfo.firmware.buildDate;
-            document.getElementById('fw-sbl').innerText = AppState.deviceInfo.firmware.sblVersion;
-            document.getElementById('fw-touchpad').innerText = AppState.deviceInfo.firmware.touchpadVersion;
-            document.getElementById('hw-mcu').innerText = AppState.deviceInfo.hardware.mcuUniqueId;
-            document.getElementById('hw-serial').innerText = AppState.deviceInfo.hardware.serialNumber;
-            document.getElementById('hw-bt-addr').innerText = AppState.deviceInfo.hardware.bluetoothAddress;
         } else {
             if (!body.classList.contains('disconnected')) body.classList.add('disconnected');
-            document.getElementById('connection-badge').innerText = 'Disconnected';
-            document.getElementById('connection-badge').className = 'badge badge-disconnected';
+            const badge = document.getElementById('connection-badge');
+            if (badge) {
+                badge.innerText = 'Disconnected';
+                badge.className = 'badge badge-disconnected';
+            }
         }
     }
 };
