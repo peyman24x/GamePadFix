@@ -58,13 +58,14 @@ export const CalibrationWizard = {
         this.updateUI();
     },
 
-    /**
-     * بازنشانی تمام بافرهای سخت‌افزاری نمونه‌برداری
+/**
+     * بازنشانی تمام بافرهای سخت‌افزاری نمونه‌برداری با فاکتور شناور سقف و کف
      */
     resetSamples() {
         this.samples = {
-            left: { minX: 0, maxX: 0, minY: 0, maxY: 0, centerX: 0, centerY: 0 },
-            right: { minX: 0, maxX: 0, minY: 0, maxY: 0, centerX: 0, centerY: 0 }
+            // مقادیر اولیه برای شکار کوچکترین و بزرگترین محدوده فرکانسی تغییر کردند
+            left: { minX: 1.0, maxX: -1.0, minY: 1.0, maxY: -1.0, centerX: 0, centerY: 0 },
+            right: { minX: 1.0, maxX: -1.0, minY: 1.0, maxY: -1.0, centerX: 0, centerY: 0 }
         };
     },
 
