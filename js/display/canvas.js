@@ -1,34 +1,27 @@
 /**
  * js/display/canvas.js
  * HID-Fix Geometric Vector Canvas Engine (ES2024 - OOP Architecture)
- * مدیریت فوق پیشرفته و کاملاً شیء‌گرا رندر برداری استیک‌ها، پایش تریل‌ها و ددزون‌ها
+ * مدیریت رندر استیک‌ها، رسم ددزون‌ها و ثبت تریل حرکتی سنسورها
  */
 
 import { AppState } from '../core/state.js';
 
 class StickVisualizer {
-    /**
-     * @param {string} canvasId - شناسه المان بوم در DOM
-     * @param {string} stickKey - کلید شناسه آنالوگ ('left' | 'right')
-     */
     constructor(canvasId, stickKey) {
         this.canvas = document.getElementById(canvasId);
-        if (!this.canvas) {
-            console.error(`Canvas element with ID ${canvasId} not found.`);
-            return;
-        }
+        if (!this.canvas) return;
+        
         this.ctx = this.canvas.getContext('2d');
         this.stickKey = stickKey;
         this.trail = [];
-        this.maxTrailPoints = 140; // تعداد فریم‌های بافر نگهداری مسیر حرکت پوتانسیومتر
+        this.maxTrailPoints = 120; // طول بافر سایه متحرک پوتانسیومتر
         
-        // تم‌های رنگی داینامیک تفکیک شده بر اساس سمت استیک
         this.theme = {
             accent: stickKey === 'left' ? '#00f2fe' : '#10b981',
-            glow: stickKey === 'left' ? 'rgba(0, 242, 254, 0.4)' : 'rgba(16, 185, 129, 0.4)',
-            grid: '#131929',
-            deadzone: 'rgba(239, 68, 68, 0.15)',
-            text: '#64748b'
+            glow: stickKey === 'left' ? 'rgba(0, 242, 254, 0.3)' : 'rgba(16, 185, 129, 0.3)',
+            grid: '#141c30',
+            deadzone: 'rgba(239, 68, 68, 0.12)',
+            text: '#5b6982'
         };
 
         this.dimensions = {
@@ -40,27 +33,19 @@ class StickVisualizer {
         };
     }
 
-    /**
-     * پاکسازی فریم قبلی بوم
-     */
     clear() {
         this.ctx.clearRect(0, 0, this.dimensions.width, this.dimensions.height);
     }
 
-    /**
-     * رسم گرید دکارتي و دوایر فرکانسی رادار داخلی
-     */
     drawGrid() {
         const { ctx, dimensions, theme } = this;
         const { centerX, centerY, radius } = dimensions;
 
-        // پس‌زمینه عمیق رادار داخلی
-        ctx.fillStyle = '#03060f';
+        ctx.fillStyle = '#03050c';
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // دوایر رادار کمکی سنجش برداری میزان دامنه ولتاژ (Amplitude Scale)
         ctx.strokeStyle = theme.grid;
         ctx.lineWidth = 1;
         [0.25, 0.5, 0.75, 1.0].forEach(scale => {
@@ -69,7 +54,6 @@ class StickVisualizer {
             ctx.stroke();
         });
 
-        // رسم محورهای خطی X و Y مرکز مختصات
         ctx.beginPath();
         ctx.moveTo(centerX - radius, centerY);
         ctx.lineTo(centerX + radius, centerY);
@@ -78,13 +62,10 @@ class StickVisualizer {
         ctx.stroke();
     }
 
-    /**
-     * رسم محدوده ددزون‌های استاندارد ۵ درصدی سخت‌افزاری
-     */
     drawDeadzones() {
         const { ctx, dimensions, theme } = this;
         const { centerX, centerY, radius } = dimensions;
-        const deadzoneRadius = radius * 0.05; // ۵ درصد محدوده لرزش ولتاژ
+        const deadzoneRadius = radius * 0.05; // محدوده ددزون ۵ درصدی سخت‌افزار
 
         ctx.fillStyle = theme.deadzone;
         ctx.beginPath();
@@ -92,9 +73,6 @@ class StickVisualizer {
         ctx.fill();
     }
 
-    /**
-     * ثبت پوزیشن در آرایه بافر و رندر سایه حرکتی (Motion History Trail)
-     */
     drawTrail(px, py) {
         const { ctx, theme } = this;
         this.trail.push({ x: px, y: py });
@@ -103,7 +81,7 @@ class StickVisualizer {
         if (this.trail.length < 2) return;
 
         ctx.strokeStyle = theme.glow;
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(this.trail[0].x, this.trail[0].y);
         for (let i = 1; i < this.trail.length; i++) {
@@ -112,52 +90,25 @@ class StickVisualizer {
         ctx.stroke();
     }
 
-    /**
-     * رسم نشانه فیزیکی موقعیت نهایی آنالوگ (Target Crosshair Pointer)
-     */
     drawPointer(px, py) {
         const { ctx, theme } = this;
-        
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = theme.accent;
         ctx.fillStyle = theme.accent;
         ctx.beginPath();
         ctx.arc(px, py, 6, 0, Math.PI * 2);
         ctx.fill();
-        
-        // بازنشانی سایه‌ها برای جلوگیری از افت نرخ فریم
-        ctx.shadowBlur = 0;
     }
 
-    /**
-     * رندر متنی ماتریس مختصات به صورت هاد (HUD Coordinates Engine)
-     */
     renderHudText(rawX, rawY) {
         const { ctx, dimensions, theme } = this;
         ctx.fillStyle = theme.text;
         ctx.font = '10px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`X: ${rawX.toFixed(4)}`, 15, dimensions.height - 25);
-        ctx.fillText(`Y: ${rawY.toFixed(4)}`, 15, dimensions.height - 12);
+        ctx.fillText(`X: ${rawX.toFixed(4)}`, 12, dimensions.height - 24);
+        ctx.fillText(`Y: ${rawY.toFixed(4)}`, 12, dimensions.height - 12);
     }
 
-    /**
-     * محاسبات برداری ریاضی میزان انحراف سنترگیری (Center Displacement)
-     */
-    calculateVectorMetrics(rawX, rawY) {
-        const drift = Math.sqrt(rawX * rawX + rawY * rawY);
-        if (this.stickKey === 'left') {
-            AppState.analysis.left.centerOffset = drift;
-        } else {
-            AppState.analysis.right.centerOffset = drift;
-        }
-    }
-
-    /**
-     * نگاشت همزمان به ماتریس جهت‌های جغرافیایی ۳x۳ رابط کاربری
-     */
     updateDirectionMatrix(rawX, rawY) {
-        const threshold = 0.25;
+        const threshold = 0.3;
         let dir = 'C';
 
         if (rawY < -threshold) {
@@ -186,23 +137,18 @@ class StickVisualizer {
         }
     }
 
-    /**
-     * ارکستراتور اصلی پردازش فریم رندر در فرکانس بالا
-     */
     updateAndRender(rawX, rawY) {
+        if (!this.canvas) return;
         this.clear();
         this.drawGrid();
         this.drawDeadzones();
 
-        // تبدیل مقادیر سنسور به مختصات پیکسلی بوم گرافیکی کانوس
         const pointerX = this.dimensions.centerX + (rawX * this.dimensions.radius);
         const pointerY = this.dimensions.centerY + (rawY * this.dimensions.radius);
 
         this.drawTrail(pointerX, pointerY);
         this.drawPointer(pointerX, pointerY);
         this.renderHudText(rawX, rawY);
-        
-        this.calculateVectorMetrics(rawX, rawY);
         this.updateDirectionMatrix(rawX, rawY);
     }
 }
