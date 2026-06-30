@@ -110,7 +110,7 @@
             box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
         }
 
-        /* ساختار گریدبندی ۳ ستونه */
+        /* ساختار گریدبندی ۳ ستونه فوق پیشرفته */
         main {
             max-width: 1650px;
             width: 100%;
@@ -132,6 +132,7 @@
             flex-direction: column;
             gap: 1.25rem;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            transition: opacity 0.3s ease;
         }
 
         .section-title {
@@ -195,6 +196,7 @@
             align-items: start;
             box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5);
             position: relative;
+            transition: opacity 0.3s ease;
         }
 
         /* باله چپ دسته (D-Pad, L1, L2, Canvas Left) */
@@ -227,9 +229,10 @@
             transition: all 0.1s ease;
         }
         .bumper-btn.pressed {
-            background: var(--color-sony-cyan);
-            color: #000;
-            box-shadow: 0 0 12px var(--color-sony-cyan);
+            background: var(--color-sony-cyan) !important;
+            color: #000 !important;
+            box-shadow: 0 0 12px var(--color-sony-cyan) !important;
+            border-color: var(--color-sony-cyan) !important;
         }
 
         /* شبیه‌ساز چیدمان فیزیکی D-PAD صلیبی */
@@ -266,7 +269,7 @@
             transform: scale(0.94);
         }
 
-        /* شبیه‌ساز چیدمان لوزی دکمه‌های اصلی سمبلیک (X,Y,A,B / △,◯,✕,□) */
+        /* شبیه‌ساز چیدمان لوزی دکمه‌های اصلی سمبلیک */
         .action-diamond-layout {
             position: relative;
             width: 110px;
@@ -290,10 +293,10 @@
             transition: all 0.1s ease;
         }
 
-        #btn-action-top { top: 0; left: 38px; }      /* △ / Y */
-        #btn-action-bottom { bottom: 0; left: 38px; } /* ✕ / A */
-        #btn-action-left { top: 38px; left: 0; }      /* □ / X */
-        #btn-action-right { top: 38px; right: 0; }    /* ◯ / B */
+        #btn-action-top { top: 0; left: 38px; }      /* △ */
+        #btn-action-bottom { bottom: 0; left: 38px; } /* ✕ */
+        #btn-action-left { top: 38px; left: 0; }      /* □ */
+        #btn-action-right { top: 38px; right: 0; }    /* ◯ */
 
         /* غلاف دایره‌ای آنالوگ استیک‌ها و خروجی بُعدی کانواس */
         .stick-pod-wrapper {
@@ -333,13 +336,16 @@
             font-size: 0.55rem;
             font-weight: bold;
             color: var(--text-muted);
+            transition: all 0.1s ease;
         }
         .stick-click-tag.pressed {
-            background: var(--color-xbox-green);
-            color: #000;
+            background: var(--color-xbox-green) !important;
+            color: #000 !important;
+            border-color: var(--color-xbox-green) !important;
+            box-shadow: 0 0 8px var(--color-xbox-green);
         }
 
-        /* مرکز دک (محل قرارگیری تاچ‌پد فرضی / باکس ویزارد کالیبراسیون) */
+        /* مرکز دک (محل قرارگیری باکس ویزارد کالیبراسیون) */
         .deck-center-core {
             display: flex;
             flex-direction: column;
@@ -378,6 +384,21 @@
             font-size: 0.7rem;
             font-family: monospace;
             color: var(--text-muted);
+        }
+
+        /* نوار پیشرفت مینیاتوری خطی کالیبراسیون جهت پایداری سورس جی‌اس */
+        .wizard-progress-bar-container {
+            height: 3px;
+            background: #020408;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: -4px;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 14.28%; /* پیش‌فرض گام نخست */
+            background: var(--color-sony-cyan);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .wizard-body-text {
@@ -461,7 +482,7 @@
             transition: width 0.04s linear;
         }
 
-        /* ترمینال مشکی مانیتورینگ بیتهای زنده ورودی HID */
+        /* ترمینال مشکی مانیتورینگ بیت‌های زنده ورودی HID */
         .terminal-mcu-box {
             background: #040508;
             border: 1px solid var(--border-glow);
@@ -476,7 +497,22 @@
             color: #34d399;
         }
 
-        /* لایه تاریک‌کننده هوشمند کل المان‌ها هنگام دیسکانکت بودن فیزیکی دستگاه */
+        /* استایل سفارشی اسکرول‌بار ابزار ترمینال برای حفظ ظاهر لوکس */
+        .terminal-mcu-box::-webkit-scrollbar {
+            width: 4px;
+        }
+        .terminal-mcu-box::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .terminal-mcu-box::-webkit-scrollbar-thumb {
+            background: rgba(52, 211, 153, 0.2);
+            border-radius: 2px;
+        }
+        .terminal-mcu-box::-webkit-scrollbar-thumb:hover {
+            background: rgba(52, 211, 153, 0.4);
+        }
+
+        /* لایه تاریک‌کننده هوشمند مدار هنگام دیسکانکت بودن فیزیکی دستگاه */
         body.disconnected .telemetry-sidebar,
         body.disconnected .gamepad-chassis {
             opacity: 0.35;
@@ -484,7 +520,7 @@
             filter: grayscale(0.2);
         }
 
-        /* ماتریس‌های جغرافیایی ۳x۳ پنهان جهت پشتیبانی بدون خطای فایل canvas.js */
+        /* ماتریس‌های جغرافیایی ۳x۳ پنهان جهت پشتیبانی فرکانس‌بالا بدون خطای فایل canvas.js */
         .hidden-matrix {
             display: none;
         }
@@ -551,10 +587,13 @@
                 <div class="deck-center-core">
                     <div class="wizard-touchpad-card">
                         <div class="wizard-node-header">
-                            <h3 id="wiz-title">سیستم کالیبراسیون خودکار</h3>
+                            <h3 id="wiz-title" class="step-title">سیستم کالیبراسیون خودکار</h3>
                             <span id="wiz-step-counter">مرحله ۱ از ۷</span>
                         </div>
-                        <p id="wiz-description" class="wizard-body-text">
+                        <div class="wizard-progress-bar-container">
+                            <div id="wizard-progress" class="progress-bar"></div>
+                        </div>
+                        <p id="wiz-description" class="wizard-body-text step-desc">
                             برای عیب‌یابی خطای دایره‌ای و تراز کردن لایه‌های مقاومت آنالوگ، ابتدا دسته را متصل کرده و دکمه شروع را بفشارید.
                         </p>
                         <div class="wizard-btn-dock">
