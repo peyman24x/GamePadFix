@@ -1,0 +1,256 @@
+/* تعریف متغیرهای پالت رنگی لوکس و صنعتی */
+:root {
+    --bg-main: #060913;
+    --bg-card: rgba(10, 15, 30, 0.7);
+    --border-glass: rgba(255, 255, 255, 0.06);
+    --accent-glow: rgba(0, 242, 254, 0.15);
+    
+    --color-text-primary: #f1f5f9;
+    --color-text-muted: #64748b;
+    
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-cyan: #00f2fe;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+}
+
+body {
+    background: var(--bg-main);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* افکت شیشه‌ای فوق‌پیشرفته (Glassmorphism) */
+.glass-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    padding: 16px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    border-color: rgba(0, 242, 254, 0.2);
+    box-shadow: 0 8px 32px 0 var(--accent-glow);
+}
+
+/* ساختار گرید دو ستونه اپلیکیشن */
+.app-layout {
+    display: grid;
+    grid-template-columns: 390px 1fr;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1600px;
+    margin: 0 auto;
+    transition: filter 0.4s ease;
+}
+
+/* مدیریت وضعیت قطع ارتباط داینامیک (State Blurring) */
+body.disconnected .app-layout {
+    filter: blur(6px);
+    pointer-events: none;
+}
+
+.overlay-container {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(4, 6, 12, 0.85);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+body.disconnected .overlay-container {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.overlay-card {
+    background: #0b0f19;
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    max-width: 450px;
+    box-shadow: 0 0 40px rgba(0, 242, 254, 0.1);
+}
+
+/* دکمه‌های شبیه‌ساز ابزار تعمیرگاهی */
+.btn-primary {
+    background: linear-gradient(135deg, #0072ff, #00f2fe);
+    border: none; color: white;
+    padding: 14px 28px; font-weight: bold;
+    border-radius: 8px; cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+    transition: transform 0.2s;
+}
+.btn-primary:hover { transform: scale(1.03); }
+
+/* ساختار تب‌ها و سایدبار */
+.sidebar-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.brand-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+}
+
+.version-tag {
+    font-size: 0.6em;
+    color: var(--color-cyan);
+    letter-spacing: 1px;
+}
+
+.badge {
+    padding: 4px 10px; border-radius: 50px; font-size: 0.8rem; font-weight: bold;
+}
+.badge-disconnected { background: rgba(239, 68, 68, 0.2); color: var(--color-danger); border: 1px solid var(--color-danger); }
+
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 0.85rem;
+}
+.tel-item span { color: var(--color-text-muted); }
+
+/* بخش ترمینال لاگ سیستم */
+.terminal-box {
+    background: #020408;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    height: 140px;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 10px;
+    font-size: 0.8rem;
+    direction: ltr; text-align: left;
+}
+
+/* پنل نمایشگر سمت چپ گراف‌ها */
+.display-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.analog-monitors-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.canvas-wrapper {
+    display: flex;
+    justify-content: center;
+    background: #020408;
+    border-radius: 8px;
+    padding: 10px;
+    margin: 12px 0;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 8px;
+    border-radius: 6px;
+}
+
+/* ماتریس ردیابی جهت‌های ۳۶۰ درجه جغرافیایی */
+.direction-matrix {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    width: 100px;
+    margin: 12px auto 0 auto;
+    text-align: center;
+    font-weight: bold;
+    color: var(--color-text-muted);
+}
+.direction-matrix span.active {
+    color: var(--color-cyan);
+    text-shadow: 0 0 8px var(--color-cyan);
+}
+
+/* بخش ماتریس سخت‌افزاری دکمه‌ها */
+.button-mapping-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+.hardware-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-glass);
+    padding: 8px; text-align: center; border-radius: 6px;
+    font-size: 0.85rem; transition: background 0.1s;
+}
+.hardware-btn.pressed {
+    background: rgba(0, 242, 254, 0.2);
+    border-color: var(--color-cyan);
+    color: var(--color-cyan);
+    box-shadow: inset 0 0 10px rgba(0, 242, 254, 0.2);
+}
+
+.triggers-bar-group {
+    grid-column: span 2;
+}
+.trigger-bar-wrapper {
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+}
+.bar-bg { background: #020408; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.bar-fill { background: linear-gradient(90deg, #0072ff, #00f2fe); width: 0%; height: 100%; transition: width 0.05s linear; }
+
+/* تب‌های منوی اطلاعات سخت‌افزاری */
+.tabs-header { display: flex; gap: 8px; border-bottom: 1px solid var(--border-glass); padding-bottom: 8px; }
+.tab-btn { background: none; border: none; color: var(--color-text-muted); cursor: pointer; font-size: 0.85rem; padding: 4px 8px; }
+.tab-btn.active { color: var(--color-cyan); border-bottom: 2px solid var(--color-cyan); }
+.tabs-content .tab-pane { display: none; }
+.tabs-content .tab-pane.active { display: block; }
+.info-list { list-style: none; font-size: 0.85rem; }
+.info-list li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.info-list li span { color: var(--color-text-muted); }
+
+/* استایل بخش ویزارد کالیبراسیون */
+.wizard-progress { height: 4px; background: #020408; border-radius: 2px; margin: 8px 0; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--color-cyan); transition: width 0.3s; }
+.step-desc { font-size: 0.9rem; margin-bottom: 8px; min-height: 40px;}
+.step-alert-box { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--color-warning); color: var(--color-warning); padding: 8px; border-radius: 6px; font-size: 0.8rem; text-align: center; }
+.wizard-actions { display: flex; gap: 8px; margin-top: 12px; }
+.btn-wizard, .btn-secondary, .btn-danger { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+.btn-wizard { background: #1e293b; color: white; }
+.btn-wizard.ready { background: var(--color-cyan); color: #060913; }
+.btn-secondary { background: rgba(255,255,255,0.05); color: var(--color-text-muted); }
+.btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--color-danger); border: 1px solid var(--color-danger); }
+
+/* سیستم ریسپانسیو مانیتور کلاینت */
+@media (max-width: 1100px) {
+    .app-layout { grid-template-columns: 1fr; }
+    .analog-monitors-container { grid-template-columns: 1fr; }
+}
