@@ -1,178 +1,156 @@
 /**
  * js/core/app.js
- * DualShock / DualSense Calibration Tool - Master App Orchestrator
- * ارکستراتور اصلی، هدایت خط لوله داده فیزیکی به دکودرها و مدیریت رندر لوپ متون UI
+ * MATRIX App Orchestrator - Adjusted for Custom DOM Layout
  */
 
 import { AppState, resetAppStateInputs } from './state.js';
 import { HidEngine } from '../hid/engine.js';
 import { SonyDecoder } from '../controllers/sony.js';
+import { XboxDecoder } from '../controllers/xbox.js';
 import { AnalogCanvas } from '../display/canvas.js';
 import { CalibrationWizard } from './wizard.js';
 
 const AppCore = {
-    /**
-     * نقطه ورود اصلی و مقداردهی اولیه سیستم
-     */
     init() {
-        AppState.log('در حال سینک و راه‌اندازی ارکستراتور مرکزی سامانه...', 'info');
+        HidEngine.onLog = (message, type) => this.logToConsole(message, type);
+
+        HidEngine.onInputReceived = (vendorId, reportId, data) => {
+            const dataView = new DataView(data.buffer);
+            if (vendorId === 0x054C || vendorId === 1356) {
+                SonyDecoder.decodeInput(reportId, dataView);
+            } else if (vendorId === 0x045E || vendorId === 1118) {
+                XboxDecoder.decodeInput(reportId, dataView);
+            }
+        };
+
+        this.logToConsole('سامانه کالیبراسیون ماتریکس آماده برقراری ارتباط با پورت سخت‌افزار است.', 'info');
         
-        // ۱. راه اندازی موتورهای پایه
         HidEngine.init();
         AnalogCanvas.init('canvas-left', 'canvas-right');
 
-        // ۲. اتصال پل ارتباطی پکت‌های ورودی سخت‌افزار به دکودر زنده
-        HidEngine.onInputReceived = (vendorId, reportId, data) => {
-            if (!AppState.connection.isConnected) return;
+        // اتصال دکمه‌های ناوبری پنجره کالیبراسیون ماتریکس
+        document.getElementById('btn-start-calibration')?.addEventListener('click', () => CalibrationWizard.start());
+        document.getElementById('wiz-btn-next')?.addEventListener('click', () => CalibrationWizard.nextStep());
+        document.getElementById('wiz-btn-back')?.addEventListener('click', () => CalibrationWizard.prevStep());
+        document.getElementById('wiz-btn-cancel')?.addEventListener('click', () => CalibrationWizard.cancel());
 
-            const dataView = new DataView(data.buffer);
+        // پیوند دکمه اختصاصی شما در HTML جدید جهت فراخوانی پنجره مرورگر
+        document.getElementById('btn-connect')?.addEventListener('click', () => HidEngine.connectDevice());
 
-            // دکود کردن پکت بر اساس سازنده (0x054C = Sony)
-            if (vendorId === 0x054C || vendorId === 1356) {
-                SonyDecoder.decodeInput(reportId, dataView);
-            }
-
-            // ⚡ تزریق آنی پوزیشن استیک‌های کالیبره‌شده به موتور رندر Canvas
-            AnalogCanvas.updateAndRender('left', AppState.inputs.axes.lx, AppState.inputs.axes.ly);
-            AnalogCanvas.updateAndRender('right', AppState.inputs.axes.rx, AppState.inputs.axes.ry);
-
-            // 🔧 در صورت فعال بودن مود کارگاهی کالیبراسیون، پکت‌ها ضبط شوند
-            if (CalibrationWizard.isActive) {
-                CalibrationWizard.recordLiveSamples();
-            }
-        };
-
-        // ۳. اتصال رویدادهای کلیک کلیدهای ویزارد کالیبراسیون
-        document.getElementById('btn-start-calibration')?.addEventListener('click', () => {
-            CalibrationWizard.start();
-        });
-        document.getElementById('wiz-btn-next')?.addEventListener('click', () => {
-            CalibrationWizard.nextStep();
-        });
-        document.getElementById('wiz-btn-back')?.addEventListener('click', () => {
-            CalibrationWizard.prevStep();
-        });
-        document.getElementById('wiz-btn-cancel')?.addEventListener('click', () => {
-            CalibrationWizard.cancel();
-        });
-
-        // ۴. اتصال دکمه اصلی جفت‌سازی WebHID
-        document.getElementById('btn-connect')?.addEventListener('click', () => {
-            if (!AppState.connection.isConnected) {
-                HidEngine.requestDeviceConnection();
-            } else {
-                HidEngine.disconnectDevice();
-            }
-        });
-
-        // ۵. استارت حلقه رندر گرافیکی متون و تلمتری‌ها (UI Render Loop)
-        this.startUiLoop();
+        // استارت لوپ رندر با فرکانس مانیتور کاربر
+        this.lifecycleLoop();
     },
 
-    /**
-     * اجرای لوپ سبک با فرکانس نمایشگر مانیتور جهت آپدیت فیلدهای متنی داشبورد
-     */
-    startUiLoop() {
-        const update = () => {
-            this.syncConnectionStateUI();
-            if (AppState.connection.isConnected) {
-                this.syncTelemetryDataUI();
-            }
-            requestAnimationFrame(update);
-        };
-        requestAnimationFrame(update);
+    lifecycleLoop() {
+        if (AppState.connection.isConnected) {
+            // آپدیت بوم گرافیکی استیک‌ها
+            AnalogCanvas.instances['left']?.updateAndRender(AppState.inputs.axes.lx, AppState.inputs.axes.ly);
+            AnalogCanvas.instances['right']?.updateAndRender(AppState.inputs.axes.rx, AppState.inputs.axes.ry);
+            
+            // آپدیت وضعیت دکمه‌ها و جابجایی تریگرها در نقشه زنده مپینگ
+            this.renderVirtualGamepad();
+        } else {
+            resetAppStateInputs();
+        }
+
+        this.renderTelemetryUI();
+        requestAnimationFrame(() => this.lifecycleLoop());
     },
 
-    /**
-     * همگام‌سازی استایل کلیدها و پاپ‌آپ‌ها متناسب با قطع یا وصل بودن فیزیکی دسته
-     */
-    syncConnectionStateUI() {
+    renderVirtualGamepad() {
+        // مپینگ داینامیک دکمه‌های دیجیتال روی فیزیک شاسی
+        Object.keys(AppState.inputs.buttons).forEach(btnKey => {
+            const el = document.getElementById(`btn-${btnKey}`);
+            if (el) {
+                if (AppState.inputs.buttons[btnKey]) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            }
+        });
+
+        // رندر و محاسبه طول بارهای تریگرهای آنالوگ L2 و R2
+        const l2Perc = Math.round(AppState.inputs.triggers.l2 * 100);
+        const r2Perc = Math.round(AppState.inputs.triggers.r2 * 100);
+
+        const barL2 = document.getElementById('bar-l2');
+        const txtL2 = document.getElementById('txt-l2');
+        if (barL2) barL2.style.width = `${l2Perc}%`;
+        if (txtL2) txtL2.innerText = `${l2Perc}%`;
+
+        const barR2 = document.getElementById('bar-r2');
+        const txtR2 = document.getElementById('txt-r2');
+        if (barR2) barR2.style.width = `${r2Perc}%`;
+        if (txtR2) txtR2.innerText = `${r2Perc}%`;
+    },
+
+    renderTelemetryUI() {
         const body = document.body;
         const badge = document.getElementById('connection-badge');
-        const btnConnect = document.getElementById('btn-connect');
         const devName = document.getElementById('device-name');
 
         if (AppState.connection.isConnected) {
-            body.classList.remove('disconnected');
-            body.classList.add('connected');
-
+            if (body.classList.contains('disconnected')) body.classList.remove('disconnected');
+            
             if (badge) {
-                badge.innerText = AppState.connection.type === 'usb' ? 'USB Mode' : 'Bluetooth';
+                badge.innerText = 'آنلاین // سخت‌افزار متصل است';
                 badge.className = 'badge badge-connected';
             }
-            if (btnConnect) {
-                btnConnect.innerHTML = '<span class=\"btn-icon\">❌</span> قطع اتصال کنترلر';
-                btnConnect.className = 'btn btn-danger';
-            }
-            if (devName) {
-                devName.innerText = AppState.deviceInfo.name;
-            }
-        } else {
-            body.classList.remove('connected');
-            body.classList.add('disconnected');
 
+            if (devName) devName.innerText = AppState.deviceInfo.name;
+
+            // نگاشت دقیق داده‌های رجیستر مطابق با ساختار جدید فایل HTML شما
+            if (document.getElementById('hw-mcu')) document.getElementById('hw-mcu').innerText = AppState.connection.type.toUpperCase();
+            if (document.getElementById('fw-date')) document.getElementById('fw-date').innerText = `0x${AppState.deviceInfo.vendorId.toString(16).toUpperCase()}`;
+            if (document.getElementById('fw-ver')) document.getElementById('fw-ver').innerText = `0x${AppState.deviceInfo.productId.toString(16).toUpperCase()}`;
+            if (document.getElementById('val-charge-status')) {
+                document.getElementById('val-charge-status').innerText = AppState.analysis.battery.isCharging ? 'در حال شارژ' : `${AppState.analysis.battery.level || 100}%`;
+            }
+
+            // شمارنده‌های فرکانس پوتانسیومترها
+            if (document.getElementById('val-hz-left')) document.getElementById('val-hz-left').innerText = `${AppState.analysis.left.pollingRate} Hz`;
+            if (document.getElementById('val-hz-right')) document.getElementById('val-hz-right').innerText = `${AppState.analysis.right.pollingRate} Hz`;
+
+            // خطای آفست مرکز و دایره‌ای
+            if (document.getElementById('err-l-offset')) document.getElementById('err-l-offset').innerText = AppState.analysis.left.centerOffset.toFixed(4);
+            if (document.getElementById('err-r-offset')) document.getElementById('err-r-offset').innerText = AppState.analysis.right.centerOffset.toFixed(4);
+            if (document.getElementById('err-l-circ')) document.getElementById('err-l-circ').innerText = `${(AppState.analysis.left.circularError * 100).toFixed(2)}%`;
+            if (document.getElementById('err-r-circ')) document.getElementById('err-r-circ').innerText = `${(AppState.analysis.right.circularError * 100).toFixed(2)}%`;
+
+        } else {
+            if (!body.classList.contains('disconnected')) body.classList.add('disconnected');
+            
             if (badge) {
-                badge.innerText = 'Disconnected';
+                badge.innerText = 'آفلاین // در انتظار کنترلر';
                 badge.className = 'badge badge-disconnected';
             }
-            if (btnConnect) {
-                btnConnect.innerHTML = '<span class=\"btn-icon\">⚡</span> اتصال به کنترلر (WebHID)';
-                btnConnect.className = 'btn btn-primary';
-            }
-            if (devName) {
-                devName.innerText = 'در انتظار اتصال سخت‌افزار...';
-            }
+
+            if (devName) devName.innerText = 'در انتظار سنترگیری تراشه سخت‌افزار...';
             
-            // بازنشانی مقادیر متنی در لایه امن دیسکانکت
-            const clearFields = ['val-model', 'val-interface', 'val-poll-left', 'val-poll-right', 'val-battery', 'val-charge-status', 'val-voltage'];
-            clearFields.forEach(id => {
+            // بازنشانی ایمن مقادیر در زمان آفلاین شدن کابل
+            ['hw-mcu', 'fw-date', 'fw-ver', 'val-charge-status'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerText = '-';
             });
-        }
-
-        // مدیریت نمایش داینامیک پاپ‌آپ ویزارد کالیبراسیون بر اساس وضعیت ماشین وضعیت
-        const wizardModal = document.getElementById('calibration-wizard-modal');
-        if (wizardModal) {
-            if (CalibrationWizard.isActive) {
-                wizardModal.style.display = 'flex';
-            } else {
-                wizardModal.style.display = 'none';
-            }
+            
+            if (document.getElementById('val-hz-left')) document.getElementById('val-hz-left').innerText = '0 Hz';
+            if (document.getElementById('val-hz-right')) document.getElementById('val-hz-right').innerText = '0 Hz';
         }
     },
 
-    /**
-     * تزریق بلادرنگ مقادیر عددی نرخ پولینگ، وضعیت باتری و سیستم‌های حفاظتی به داشبورد
-     */
-    syncTelemetryDataUI() {
-        // ۱. مشخصات عمومی فریمور
-        const modelEl = document.getElementById('val-model');
-        if (modelEl) modelEl.innerText = AppState.deviceInfo.model;
+    logToConsole(message, type = 'info') {
+        const consoleBody = document.getElementById('app-console');
+        if (!consoleBody) return;
 
-        const interfaceEl = document.getElementById('val-interface');
-        if (interfaceEl) interfaceEl.innerText = AppState.connection.type.toUpperCase();
-
-        // ۲. شمارشگر نرخ فرکانس (Polling Rate) بر حسب هرتز
-        const pollLeftEl = document.getElementById('val-poll-left');
-        if (pollLeftEl) pollLeftEl.innerText = `${AppState.analysis.left.pollingRate} Hz`;
-
-        const pollRightEl = document.getElementById('val-poll-right');
-        if (pollRightEl) pollRightEl.innerText = `${AppState.analysis.right.pollingRate} Hz`;
-
-        // ۳. سیستم مدیریت انرژی و باتری سونی
-        const battEl = document.getElementById('val-battery');
-        if (battEl) {
-            battEl.innerText = AppState.analysis.battery.level !== null ? `${AppState.analysis.battery.level}%` : 'نادرست';
-        }
-
-        const chargeEl = document.getElementById('val-charge-status');
-        if (chargeEl) {
-            chargeEl.innerText = AppState.analysis.battery.isCharging ? 'در حال شارژ ⚡' : 'درحال تخلیه (باتری)';
-            chargeEl.style.color = AppState.analysis.battery.isCharging ? '#10b981' : '#64748b';
-        }
+        const logRow = document.createElement('div');
+        logRow.className = `log-${type}`;
+        logRow.innerText = `[${type.toUpperCase()}] ${message}`;
+        
+        consoleBody.appendChild(logRow);
+        consoleBody.scrollTop = consoleBody.scrollHeight;
     }
 };
 
-// اجرای ایمن ارکستراتور پس از لود کامل لایه‌های درخت DOM
 document.addEventListener('DOMContentLoaded', () => AppCore.init());
+export { AppCore };
