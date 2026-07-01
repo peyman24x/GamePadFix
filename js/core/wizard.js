@@ -1,6 +1,6 @@
 /**
  * js/core/wizard.js
- * DualShock / DualSense Calibration Tool - 6-Step Calibration State Machine
+ * DualShock / DualSense Calibration Tool - 7-Step Calibration State Machine
  * مدیریت ماشین وضعیت کالیبراسیون کارگاهی، ثبت بافرهای فیزیکی و محاسبه ضرایب تصحیح دریفت
  */
 
@@ -8,7 +8,7 @@ import { AppState } from './state.js';
 
 export const CalibrationWizard = {
     currentStep: 1,
-    totalSteps: 6,
+    totalSteps: 7,
     isActive: false,
 
     // بافرهای موقت برای ذخیره حد بالا و پایین سیگنال ولتاژ پتانسیومترها در طول فرآیند
@@ -19,12 +19,13 @@ export const CalibrationWizard = {
 
     // دایره المعارف و راهنمای گام‌به‌گام مراحل کالیبراسیون مطابق داکیومنت‌های فنی سونی
     stepGuides: [
-        { title: 'شروع فرآیند کالیبراسیون', desc: 'لطفاً کنترلر را روی یک سطح کاملاً صاف و پایدار قرار داده و استیک‌ها را رها کنید. سپس دکمه "مرحله بعد" را جهت سنترگیری اولیه فشار دهید.' },
-        { title: 'ثبت مرکز استیک چپ (Left Center)', desc: 'بدون دست زدن به استیک‌ها، دکمه "مرحله بعد" را بزنید تا خروجی ولتاژ و مقاومت فیزیکی تراشه چپ در وضعیت استراحت صفر شود.' },
-        { title: 'کالیبراسیون دامنه استیک چپ (Left Range)', desc: 'استیک چپ را ۲ الی ۳ بار به صورت کامل و دایره‌ای ۳۶۰ درجه بچرخانید تا بیشترین محدوده مغناطیسی مگنت‌ها ثبت شود. سپس دکمه "مرحله بعد" را بزنید.' },
-        { title: 'ثبت مرکز استیک راست (Right Center)', desc: 'استیک‌ها را مجدداً رها کنید و دکمه "مرحله بعد" را بزنید تا نقطه ثقل و ولتاژ تعادلی هسته آنالوگ راست نمونه‌برداری و قفل شود.' },
-        { title: 'کالیبراسیون دامنه استیک راست (Right Range)', desc: 'استیک راست را چند بار به صورت کامل در تمامی جهات ۳۶۰ درجه بچرخانید تا ماکزیمم دامنه دامنه پتانسیومتر ثبت شود. سپس دکمه "مرحله بعد" را بزنید.' },
-        { title: 'پردازش ماتریس و اعمال نهایی', desc: 'بافرهای فیزیکی با موفقیت ارزیابی شدند. برای تزریق زنده ضرایب تصحیح نرم‌افزاری به هسته پردازش داده، روی دکمه "پایان کالیبراسیون" کلیک کنید.' }
+        { title: 'شروع فرآیند کالیبراسیون', desc: 'لطفاً کنترلر را روی یک سطح کاملاً صاف و پایدار قرار داده و استیک‌ها بدون دست زدن بخود باقی بمانند.' },
+        { title: 'ثبت مرکز استیک چپ (Left Center)', desc: 'بدون دست زدن به استیک‌ها، دکمه "ثبت و ادامه" را بزنید تا خروجی ولتاژ و مرکز ثبت شود.' },
+        { title: 'کالیبراسیون دامنه استیک چپ (Left Range)', desc: 'استیک چپ را ۲ الی ۳ بار به صورت کامل و دایره‌ای ۳۶۰ درجه بچرخانید تا حد بالا و پایین ثبت شود.' },
+        { title: 'ثبت مرکز استیک راست (Right Center)', desc: 'استیک‌ها را مجدداً رها کنید و دکمه "ثبت و ادامه" را بزنید تا نقطه ثقل آنالوگ راست ضبط شود.' },
+        { title: 'کالیبراسیون دامنه استیک راست (Right Range)', desc: 'استیک راست را چند بار به صورت کامل در تمامی جهات ۳۶۰ درجه بچرخانید تا حد‌های حرکت ثبت شوند.' },
+        { title: 'تحلیل دایره‌های و کیفیت سنسور', desc: 'سیستم دقت و خطای دایره‌های سنسورها را آنالیز می‌کند. لطفاً صبر کنید...' },
+        { title: 'پردازش ماتریس و اعمال نهایی', desc: 'بافرهای فیزیکی با موفقیت ارزیابی شدند. برای تزریق زنده ضرایب تصحیح، روی "پایان کالیبراسیون" کلیک کنید.' }
     ],
 
     /**
@@ -40,7 +41,7 @@ export const CalibrationWizard = {
         this.resetSamples();
         this.updateUI();
         
-        AppState.log('ویزارد ۶ مرحله‌ای کالیبراسیون سخت‌افزاری تراشه فعال شد.', 'info');
+        AppState.log('ویزارد ۷ مرحله‌ای کالیبراسیون سخت‌افزاری تراشه فعال شد.', 'info');
     },
 
     /**
@@ -176,15 +177,15 @@ export const CalibrationWizard = {
         const guide = this.stepGuides[this.currentStep - 1];
         if (!guide) return;
 
-        const titleEl = document.getElementById('wiz-step-title');
-        const descEl = document.getElementById('wiz-step-desc');
-        const countEl = document.getElementById('wiz-step-count');
-        const progressEl = document.getElementById('wiz-progress-bar');
+        const titleEl = document.getElementById('step-title');
+        const descEl = document.getElementById('step-desc');
+        const indicatorEl = document.getElementById('wizard-step-indicator');
+        const progressEl = document.getElementById('progress-bar');
         const btnNext = document.getElementById('wiz-btn-next');
 
         if (titleEl) titleEl.innerText = guide.title;
         if (descEl) descEl.innerText = guide.desc;
-        if (countEl) countEl.innerText = `گام ${this.currentStep} از ${this.totalSteps}`;
+        if (indicatorEl) indicatorEl.innerText = `مرحله ${this.currentStep} از ${this.totalSteps}`;
         
         if (progressEl) {
             const percent = (this.currentStep / this.totalSteps) * 100;
@@ -192,7 +193,7 @@ export const CalibrationWizard = {
         }
 
         if (btnNext) {
-            btnNext.innerText = this.currentStep === this.totalSteps ? 'پایان کالیبراسیون' : 'مرحله بعد';
+            btnNext.innerText = this.currentStep === this.totalSteps ? 'پایان کالیبراسیون' : 'ثبت و ادامه';
         }
     }
 };

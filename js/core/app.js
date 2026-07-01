@@ -62,8 +62,14 @@ const AppCore = {
 
     lifecycleLoop() {
         if (AppState.connection.isConnected) {
-            AnalogCanvas.instances['left']?.updateAndRender(AppState.inputs.axes.lx, AppState.inputs.axes.ly);
-            AnalogCanvas.instances['right']?.updateAndRender(AppState.inputs.axes.rx, AppState.inputs.axes.ry);
+            AnalogCanvas.instances['left']?.updateAndRender('left', AppState.inputs.axes.lx, AppState.inputs.axes.ly);
+            AnalogCanvas.instances['right']?.updateAndRender('right', AppState.inputs.axes.rx, AppState.inputs.axes.ry);
+            
+            // ✅ فراخوانی رکورد کردن نمونه‌های زنده برای ویزارد کالیبراسیون
+            if (CalibrationWizard.isActive) {
+                CalibrationWizard.recordLiveSamples();
+            }
+            
             this.renderVirtualGamepad();
         } else {
             resetAppStateInputs();

@@ -130,9 +130,10 @@ export const HidEngine = {
         if (now - this.lastTimestamp >= 1000) {
             const hz = Math.round((this.packetCount * 1000) / (now - this.lastTimestamp));
             
-            if (vendorId === 0x054C) {
+            // ✅ تصحیح منطق: Sony = left، Xbox = right
+            if (vendorId === 0x054C) {  // Sony
                 AppState.analysis.left.pollingRate = hz;
-            } else {
+            } else if (vendorId === 0x045E) {  // Xbox
                 AppState.analysis.right.pollingRate = hz;
             }
             

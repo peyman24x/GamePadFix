@@ -122,6 +122,9 @@ export const AnalogCanvas = {
 
     /**
      * متد دسترسی سریع بیرونی برای به‌روزرسانی فریم رندر استیک‌ها
+     * @param {string} stickKey - 'left' یا 'right'
+     * @param {number} x - محور X (-1.0 تا +1.0)
+     * @param {number} y - محور Y (-1.0 تا +1.0)
      */
     updateAndRender(stickKey, x, y) {
         if (this.instances[stickKey]) {
