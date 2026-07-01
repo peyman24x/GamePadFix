@@ -6,12 +6,13 @@
 
 export const AppState = {
     // ۱. وضعیت اتصال دستگاه WebHID
-    connection: {
-        isConnected: false,
-        status: 'disconnected', // 'connected' | 'disconnected'
-        type: '-',             // 'usb' | 'bluetooth'
-        device: null           // ذخیره رفرنس شیء سخت‌افزاری WebHID Device
-    },
+// js/core/state.js
+connection: {
+    isConnected: false,
+    status: 'disconnected', // 'connected' | 'disconnected'
+    type: null,             // 'usb' | 'bluetooth'
+    interface: null
+},
 
     // اطلاعات اصلی و شناسایی فریمور کنترلر
     deviceInfo: {
